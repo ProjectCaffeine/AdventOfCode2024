@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"math"
 	"os"
+	"sort"
 	"strconv"
 )
 
@@ -18,14 +20,50 @@ func main() {
 	data := getFileData()
 	firstList, secondList := breakDataIntoLists(data)
 
+	sort.Ints(firstList)
+	sort.Ints(secondList)
+
+	totalDifference := getTotalDifference(firstList, secondList)
+
+	fmt.Printf("Total Difference: %d\n", totalDifference)
+}
+
+func getTotalDifference(firstList []int, secondList []int) int {
+	totalDifference := 0
+
+	for idx, v := range firstList {
+		difference := int(math.Abs(float64(v) - float64(secondList[idx])))
+
+		totalDifference += difference
+	}
+
+	return totalDifference
+}
+
+func printLists(firstList []int, secondList []int) {
+	fmt.Printf("First List:\n")
+
+	for _, v := range firstList {
+		fmt.Printf("%d\n", v)
+	}
+
+	fmt.Printf("\n\nSecond List:\n")
+
+	for _, v := range secondList {
+		fmt.Printf("%d\n", v)
+	}
 }
 
 func breakDataIntoLists(data []byte) (firstList []int, secondList []int) {
 	dataByLines := bytes.Split(data, []byte("\n"))
-	firstList = make([]int, len(dataByLines))
-	secondList = make([]int, len(dataByLines))
+	firstList = make([]int, len(dataByLines) - 1)
+	secondList = make([]int, len(dataByLines) - 1)
 
-	for _, v := range dataByLines {
+	for idx, v := range dataByLines {
+		if string(v) == "" {
+			break
+		}
+
 		lineValues := bytes.Split(v, []byte("   "))
 		firstNum, err := strconv.Atoi(string(lineValues[0]))
 
@@ -35,8 +73,8 @@ func breakDataIntoLists(data []byte) (firstList []int, secondList []int) {
 
 		handlePossibleError(err)
 
-		firstList = append(firstList, firstNum)
-		secondList = append(secondList, secondNum)
+		firstList[idx] = firstNum
+		secondList[idx] = secondNum
 	}
 
 	return firstList, secondList
