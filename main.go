@@ -3,121 +3,112 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 )
 
 func main() {
-	data := getFileData("day4input.txt")
+	data := getFileData("day5input.txt")
 
-	parseTextForDay4(data)
+	fmt.Printf("%q", data)
 }
 
-func parseTextForDay4(data []byte) {
-	splitLines := bytes.Split(data, []byte("\n"))
-	cnt := 0
+func parseData(data []byte) {
+	splitData := bytes.Split(data, []byte("\n\n"))
+	firstPageRules, secondPageRules := getRules(splitData[0])
 
-	for rowIdx, row := range splitLines {
-		for colIdx, char := range row {
-			if char != 'X' {
-				continue
+	processUpdates(splitData[1], firstPageRules, secondPageRules)
+}
+
+func processUpdates(updates []byte, firstPageRules map[int][]int, secondPageRules map[int][]int) int {
+	sum := 0
+
+	for _, update := range bytes.Split(updates, []byte("\n")) {
+		if !isUpdateValid(update, firstPageRules, secondPageRules) {
+			continue
+		}
+
+		//Add sum here
+	}
+
+	return sum
+}
+
+func isUpdateValid(update []byte, firstPageRules map[int][]int, secondPageRules map[int][]int) bool {
+	pageNumbers := bytes.Split(update, []byte(","))
+	updatedPages := make(map[int]bool, len(pageNumbers))
+
+	for _, pageNum := range pageNumbers {
+		num, err := strconv.Atoi(string(pageNum))
+
+		handlePossibleError(err)
+
+		laterPages, hasFirstPageRules := firstPageRules[num]
+
+		if hasFirstPageRules {
+			for _, page := range laterPages {
+				_, hasPage := updatedPages[page]
+
+				if hasPage {
+					return false
+				}
 			}
-
-			cnt += searchForWord(splitLines, rowIdx, colIdx)
-		}
-	}
-
-	fmt.Printf("Total found: %d\n", cnt)
-}
-
-func searchForWord(data [][]byte, currRow int, currCol int) int {
-	matches := 0
-	directions := []string {
-		"up",
-		"down",
-		"left",
-		"right",
-		"upleft",
-		"upright",
-		"downleft",
-		"downright",
-	}
-
-	for _, dir := range directions {
-		//if !canSearch(data, currRow, currCol, dir) {
-		//	continue
-		//}
-
-		if searchDirection(data, currRow, currCol, dir) {
-			matches++
-		}
-	}
-
-	return matches
-}
-
-func searchDirection(data [][]byte, currRow int, currCol int, direction string) bool {
-	chars := []rune {
-		'X',
-		'M',
-		'A',
-		'S',
-	}
-	rowToSearch := currRow
-	colToSearch := currCol
-	
-	for idx, char := range chars {
-		if strings.Contains(direction, "up") {
-			rowToSearch -= idx
 		}
 
-		if strings.Contains(direction, "down") {
-			rowToSearch += idx
+		earlierPages, hasSecondPageRules := secondPageRules[num]
+
+		if hasSecondPageRules {
+			for _, page := range earlierPages {
+				_, hasPage := updatedPages[page]
+
+				if !hasPage {
+					return false 
+				}
+			}
 		}
 
-		if strings.Contains(direction, "left") {
-			colToSearch -= idx
-		}
-
-		if strings.Contains(direction, "right") {
-			colToSearch += idx
-		}
-
-		if rowToSearch >= len(data) || rowToSearch < 0 {
-			return false
-		}
-
-		if colToSearch < 0 || colToSearch >= len(data[rowToSearch]) {
-			return false
-		}
-		
-		
-		if data[rowToSearch][colToSearch] != byte(char) {
-			return false
-		}
-
-		rowToSearch = currRow
-		colToSearch = currCol
+		updatedPages[num] = true
 	}
 
 	return true
 }
 
-func canSearch(data [][]byte, currRow int, currCol int, direction string) bool {
-	if strings.Contains(direction, "up") && currRow < 3 {
-		return false
+func getRules(data []byte) (map[int][]int, map[int][]int){
+	lines := bytes.Split(data, []byte("\n"))
+	firstPageRules := make(map[int][]int, len(lines))
+	secondPageRules := make(map[int][]int, len(lines))
+
+	for _, line := range lines {
+		strLine := string(line)
+		if strLine == "" {
+			break
+		}
+
+		splitLine := strings.Split(strLine, "|")
+		firstPage, err := strconv.Atoi(splitLine[0])
+
+		handlePossibleError(err)
+		secondPage, err := strconv.Atoi(splitLine[1])
+
+		handlePossibleError(err)
+
+		_, ok := firstPageRules[firstPage]
+
+		if ok && !slices.Contains(firstPageRules[firstPage], secondPage) {
+			firstPageRules[firstPage] = append(firstPageRules[firstPage], secondPage)
+		} else if !ok {
+			firstPageRules[firstPage] = []int {secondPage}
+		}
+
+		_, secondPageOk := secondPageRules[secondPage]
+
+		if secondPageOk && !slices.Contains(firstPageRules[firstPage], secondPage) {
+			secondPageRules[secondPage] = append(secondPageRules[secondPage], firstPage)
+		} else if !secondPageOk {
+			secondPageRules[secondPage] = []int {firstPage}
+		}
 	}
 
-	if strings.Contains(direction, "down") && currRow > len(data) - 4 {
-		return false
-	}
-
-	if strings.Contains(direction, "left") && currCol < 3 {
-		return false
-	}
-
-	if strings.Contains(direction, "right") && currCol > len(data[currRow]) - 4 {
-		return false
-	}
-
-	return true
+	return firstPageRules, secondPageRules
 }
