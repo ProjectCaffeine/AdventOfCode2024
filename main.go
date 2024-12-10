@@ -1,125 +1,123 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
-	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 )
 
 func main() {
-	data := getFileData("day3input.txt")
+	data := getFileData("day4input.txt")
 
-	parseText(data)
+	parseTextForDay4(data)
 }
 
-type command struct {
-	Do bool
-	Index []int
-}
+func parseTextForDay4(data []byte) {
+	splitLines := bytes.Split(data, []byte("\n"))
+	cnt := 0
 
-func getDosAndDonts(data []byte) []command {
-	doRegex, err := regexp.Compile(`do\(\)`)
-
-	handlePossibleError(err)
-	dontRegex, err := regexp.Compile(`don't\(\)`)
-
-	handlePossibleError(err)
-
-	results := make([]command, 0, 256)
-
-	doRegexIdxs := doRegex.FindAllIndex(data, -1)
-
-	results = append(results, command {
-		Do: true,
-		Index: []int {0, 0},
-	})
-
-	if doRegexIdxs != nil {
-		for _, val := range doRegexIdxs {
-			results = append(results, command {
-				Do: true,
-				Index: val,
-			})
-		}
-	}
-
-	dontRegexIdxs := dontRegex.FindAllIndex(data, -1)
-
-	if dontRegexIdxs != nil {
-		for _, val := range dontRegexIdxs {
-			results = append(results, command {
-				Do: false,
-				Index: val,
-			})
-		}
-	}
-
-	sort.Slice(results, func(i, j int) bool {
-		return results[j].Index[0] > results[i].Index[0]
-	})
-
-	return results
-}
-
-func printDosAndDonts(dosAndDonts []command) {
-	for _, val := range dosAndDonts {
-		fmt.Printf("Do: %t\nIndex:[%d, %d]\n\n", val.Do, val.Index[0], val.Index[1])
-	}
-}
-
-func parseText(data []byte) {
-	dosAndDonts := getDosAndDonts(data)
-	printDosAndDonts(dosAndDonts)
-
-	regex, err := regexp.Compile(`mul\(\d{1,3},\d{1,3}\)`)
-
-	handlePossibleError(err)
-
-	results := regex.FindAllIndex(data, -1)
-
-	processEnabledCommands(dosAndDonts, results, data)
-}
-
-func processEnabledCommands(dosAndDonts []command, mulCommands [][]int, data []byte) {
-	sum := 0
-	enabled := true
-	enabledIdx := 0
-
-	for _, val := range dosAndDonts[1:] {
-		if enabled && !val.Do {
-			for _, mulCommand := range mulCommands {
-				if mulCommand[0] < enabledIdx {
-					continue
-				} else if mulCommand[0] > val.Index[0] {
-					break
-				}
-
-				sum += parseMul(string(data[mulCommand[0]:mulCommand[1]]))
+	for rowIdx, row := range splitLines {
+		for colIdx, char := range row {
+			if char != 'X' {
+				continue
 			}
-		}
 
-		if !enabled && val.Do {
-			enabledIdx = val.Index[0]
+			cnt += searchForWord(splitLines, rowIdx, colIdx)
 		}
-
-		enabled = val.Do
 	}
 
-	fmt.Printf("The total sum is: %d\n", sum)
+	fmt.Printf("Total found: %d\n", cnt)
 }
 
-func parseMul(funcCall string) int {
-	cleanedStr := strings.Replace(funcCall, "mul(", "", -1)
-	cleanedStr = strings.Replace(cleanedStr, ")", "", -1)
-	splitStr := strings.Split(cleanedStr, ",")
-	firstNum, err := strconv.Atoi(splitStr[0])
+func searchForWord(data [][]byte, currRow int, currCol int) int {
+	matches := 0
+	directions := []string {
+		"up",
+		"down",
+		"left",
+		"right",
+		"upleft",
+		"upright",
+		"downleft",
+		"downright",
+	}
 
-	handlePossibleError(err)
-	secondNum, err := strconv.Atoi(splitStr[1])
+	for _, dir := range directions {
+		//if !canSearch(data, currRow, currCol, dir) {
+		//	continue
+		//}
 
-	handlePossibleError(err)
+		if searchDirection(data, currRow, currCol, dir) {
+			matches++
+		}
+	}
 
-	return firstNum * secondNum
+	return matches
+}
+
+func searchDirection(data [][]byte, currRow int, currCol int, direction string) bool {
+	chars := []rune {
+		'X',
+		'M',
+		'A',
+		'S',
+	}
+	rowToSearch := currRow
+	colToSearch := currCol
+	
+	for idx, char := range chars {
+		if strings.Contains(direction, "up") {
+			rowToSearch -= idx
+		}
+
+		if strings.Contains(direction, "down") {
+			rowToSearch += idx
+		}
+
+		if strings.Contains(direction, "left") {
+			colToSearch -= idx
+		}
+
+		if strings.Contains(direction, "right") {
+			colToSearch += idx
+		}
+
+		if rowToSearch >= len(data) || rowToSearch < 0 {
+			return false
+		}
+
+		if colToSearch < 0 || colToSearch >= len(data[rowToSearch]) {
+			return false
+		}
+		
+		
+		if data[rowToSearch][colToSearch] != byte(char) {
+			return false
+		}
+
+		rowToSearch = currRow
+		colToSearch = currCol
+	}
+
+	return true
+}
+
+func canSearch(data [][]byte, currRow int, currCol int, direction string) bool {
+	if strings.Contains(direction, "up") && currRow < 3 {
+		return false
+	}
+
+	if strings.Contains(direction, "down") && currRow > len(data) - 4 {
+		return false
+	}
+
+	if strings.Contains(direction, "left") && currCol < 3 {
+		return false
+	}
+
+	if strings.Contains(direction, "right") && currCol > len(data[currRow]) - 4 {
+		return false
+	}
+
+	return true
 }
